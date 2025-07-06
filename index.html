@@ -98,15 +98,18 @@
       function Event(props) {
         const ref = React.useRef();
 
-        const { onSize } = props;
-
         React.useEffect(() => {
-          const width = ref.current.offsetWidth;
-          const height = ref.current.offsetHeight;
-          if (onSize) {
-            onSize({ width, height });
-          }
-        });
+          if (!props.onResize || !ref.current) return;
+
+          const observer = new ResizeObserver(([entry]) => {
+            const { width, height } = entry.contentRect;
+            props.onResize({ width, height });
+          });
+
+          observer.observe(ref.current);
+
+          return () => observer.disconnect();
+        }, [props.onResize]);
 
         return (
           <li ref={ref} className={"event" + (props.slim ? " event_slim" : "")}>
@@ -261,24 +264,21 @@
 
       function Main() {
         const ref = React.useRef();
-        const initedRef = React.useRef(false);
         const [activeTab, setActiveTab] = React.useState("");
         const [hasRightScroll, setHasRightScroll] = React.useState(false);
 
         React.useEffect(() => {
-          if (!activeTab && !initedRef.current) {
-            initedRef.current = true;
-            setActiveTab(
-              new URLSearchParams(location.search).get("tab") || "all"
-            );
-          }
-        });
+          setActiveTab(
+            new URLSearchParams(location.search).get("tab") || "all"
+          );
+        }, []);
 
         const onSelectInput = (event) => {
           setActiveTab(event.target.value);
         };
 
         let sizes = [];
+
         const onSize = (size) => {
           sizes = [...sizes, size];
         };
@@ -424,7 +424,6 @@
                       key={key}
                       role="tab"
                       aria-selected={key === activeTab ? "true" : "false"}
-                      tabIndex={key === activeTab ? "0" : undefined}
                       className={
                         "section__tab" +
                         (key === activeTab ? " section__tab_active" : "")
@@ -454,7 +453,7 @@
                   >
                     <ul className="section__panel-list">
                       {TABS[key].items.map((item, index) => (
-                        <Event key={index} {...item} onSize={onSize} />
+                        <Event key={index} {...item} onResize={onSize} />
                       ))}
                     </ul>
                   </div>
@@ -468,15 +467,12 @@
         );
       }
 
-      setTimeout(() => {
-        const root = ReactDOM.createRoot(document.getElementById("app"));
-        root.render(
-          <>
-            <Header />
-            <Main />
-          </>
-        );
-      }, 100);
+      ReactDOM.createRoot(document.getElementById("app")).render(
+        <>
+          <Header />
+          <Main />
+        </>
+      );
     </script>
   </body>
 </html>
